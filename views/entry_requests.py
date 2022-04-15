@@ -159,8 +159,11 @@ def search_entries(searched_term):
                 e.concept,
                 e.entry,
                 e.mood_id,
-                e.date
+                e.date,
+                m.label mood_label
             FROM entries e
+            JOIN moods m
+                ON m.id == e.mood_id
             WHERE e.entry LIKE ?
         """, (f"%{searched_term}%", ))
 
@@ -170,6 +173,8 @@ def search_entries(searched_term):
 
         for row in dataset:
             entry = Entry(row['id'], row['concept'], row['entry'], row['mood_id'], row['date'])
+            mood = Mood(row['mood_id'], row['mood_label'])
+            entry.mood = mood.__dict__
             matching_entries.append(entry.__dict__)
 
         return json.dumps(matching_entries)
