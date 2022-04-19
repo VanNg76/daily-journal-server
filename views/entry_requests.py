@@ -1,6 +1,6 @@
 import json
 import sqlite3
-from models import Entry, Mood
+from models import Entry, Mood, Tag, Entry_Tag
 
 def get_all_entries():
     """Get all entries"""
@@ -40,8 +40,29 @@ def get_all_entries():
             # Entry class above.
             entry = Entry(row['id'], row['concept'], row['entry'], row['mood_id'], row['date'])
             mood = Mood(row['mood_id'], row['mood_label'])
-
             entry.mood = mood.__dict__
+
+            # Initiate tags for current entry
+            tags = []
+
+            # get tags
+            db_cursor.execute("""
+            SELECT
+                et.id,
+                et.entry_id,
+                et.tag_id,
+                en.id entry_entry_id
+            FROM entries_tags et
+            JOIN entries en
+                ON et.entry_id = en.id
+            WHERE et.entry_id = ?""", (entry.id, ))
+
+            entry_tags = db_cursor.fetchall()
+
+            for entry_tags_row in entry_tags:
+                tags.append(entry_tags_row['tag_id'])
+
+            entry.tags = tags
 
             entries.append(entry.__dict__)
 
@@ -80,6 +101,37 @@ def get_single_entry(id):
 
     return json.dumps(entry)
 
+def get_all_entries_by_mood(mood_id):
+    """get single entry by mood"""
+    with sqlite3.connect("./dailyjournal.sqlite3") as conn:
+        conn.row_factory = sqlite3.Row
+        db_cursor = conn.cursor()
+
+        db_cursor.execute("""
+            SELECT
+                e.id,
+                e.concept,
+                e.entry,
+                e.mood_id,
+                e.date,
+                m.label mood_label
+            FROM entries e
+            JOIN moods m
+                ON m.id = e.mood_id
+            WHERE e.mood_id = ?
+        """, (mood_id, ))
+
+        data = db_cursor.fetchall()
+        entries = []
+
+        for row in data:
+            entry = Entry(row['id'], row['concept'], row['entry'], row['mood_id'], row['date'])
+            mood = Mood(row['mood_id'], row['mood_label'])
+            entry.mood = mood.__dict__
+            entry = entry.__dict__
+            entries.append(entry)
+
+    return json.dumps(entries)
 
 def delete_entry(id):
     """delete an entry"""
@@ -124,14 +176,13 @@ def create_entry(new_entry):
     """create new entry"""
     with sqlite3.connect("./dailyjournal.sqlite3") as conn:
         db_cursor = conn.cursor()
+        conn.row_factory = sqlite3.Row
 
         db_cursor.execute("""
-        INSERT INTO entries
-            ( concept, entry, mood_id, date )
-        VALUES
-            ( ?, ?, ?, ? )
+        INSERT INTO entries ( concept, entry, mood_id, date )
+        VALUES ( ?, ?, ?, ? )
         """, (new_entry['concept'], new_entry['entry'],
-              new_entry['moodId'], new_entry['date'], ))
+              new_entry['mood_id'], new_entry['date'], ))
 
         # The `lastrowid` property on the cursor will return
         # the primary key of the last thing that got added to
@@ -142,7 +193,6 @@ def create_entry(new_entry):
         # was sent by the client so that the client sees the
         # primary key in the response.
         new_entry['id'] = id
-
 
     return json.dumps(new_entry)
 
