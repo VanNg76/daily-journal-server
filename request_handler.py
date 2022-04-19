@@ -1,9 +1,11 @@
 import json
 
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from views import get_all_entries, get_single_entry, delete_entry
+from views import get_all_entries, get_single_entry, delete_entry, get_all_entries_by_mood
 from views import search_entries, update_entry, create_entry
 from views import get_all_moods, get_single_mood
+from views import get_all_tags
+from views import create_entry_tag, delete_entry_tag
 
 
 # Here's a class. It inherits from another class.
@@ -98,6 +100,12 @@ class HandleRequests(BaseHTTPRequestHandler):
                 else:
                     response = f"{get_all_moods()}"
 
+            if resource == "tags":
+                # if id is not None:
+                #     response = f"{get_single_mood(id)}"
+                # else:
+                response = f"{get_all_tags()}"
+
         elif len(parsed) == 3:
             ( resource, key, value ) = parsed
 
@@ -106,6 +114,8 @@ class HandleRequests(BaseHTTPRequestHandler):
             # email as a filtering value?
             if key == "q" and resource == "entries":
                 response = search_entries(value)
+            if key == "mood_id" and resource == "entries":
+                response = get_all_entries_by_mood(int(value))
 
         else:
             response = []
@@ -139,6 +149,7 @@ class HandleRequests(BaseHTTPRequestHandler):
         if resource == "entries":
             new_entry = create_entry(post_body)
             self.wfile.write(f"{new_entry}".encode())
+
 
 
     # Here's a method on the class that overrides the parent's method.
