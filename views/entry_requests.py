@@ -51,10 +51,13 @@ def get_all_entries():
                 et.id,
                 et.entry_id,
                 et.tag_id,
-                en.id entry_entry_id
+                en.id entry_entry_id,
+                t.name
             FROM entries_tags et
             JOIN entries en
                 ON et.entry_id = en.id
+            JOIN tags t
+                ON t.id = et.tag_id
             WHERE et.entry_id = ?""", (entry.id, ))
 
             entry_tags = db_cursor.fetchall()
@@ -182,12 +185,19 @@ def create_entry(new_entry):
         INSERT INTO entries ( concept, entry, mood_id, date )
         VALUES ( ?, ?, ?, ? )
         """, (new_entry['concept'], new_entry['entry'],
-              new_entry['mood_id'], new_entry['date'], ))
+              new_entry['mood_id'], new_entry['date']))
 
         # The `lastrowid` property on the cursor will return
         # the primary key of the last thing that got added to
         # the database.
         id = db_cursor.lastrowid
+
+        for tag in new_entry['tags']:
+            db_cursor.execute("""
+            INSERT INTO entries_tags ( entry_id, tag_id )
+            VALUES ( ?, ? )
+            """, (id, tag))
+
 
         # Add the `id` property to the animal dictionary that
         # was sent by the client so that the client sees the
